@@ -9,4 +9,4 @@ pip install -r requirements.txt
 python server.py
 ```
 
-A configurable questionnaire program designed for CTF challenges that requires users to answer questions to solve the challenge.
+A configurable questionnaire program designed for CTF challenges that requires users to answer questions to solve the challenge. Supports multi-answer questions, unordered list-based answers and case insensitivity.
