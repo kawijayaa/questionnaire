@@ -1,0 +1,45 @@
+config:
+  flag: "CTF{lorem_ipsum_dolor_sit_amet_consectetur_adipiscing_elit_ut_molestie}"
+  header_text: |-
+    Questionnaire
+    by k3ng
+  win_text: "Congratulations, you have successfully analysed the incident!"
+  case_sensitive: false
+  can_skip: true
+  array_delimiter: ","
+
+ui:
+  panel_style: "magenta"
+  header_style: "bold white"
+  border_type: "ROUNDED"
+
+theme:
+  info: "italic cyan"
+  error: "bold red blink"
+  success: "bold green"
+  question: "bold yellow"
+  flag: "white"
+  prompt: "bold magenta"
+
+questions:
+  - question: "What ports are open on the machine?"
+    answer:
+      - "22"
+      - "80"
+      - "443"
+    config:
+      type: "array"
+      format: "123,456"
+  - question: "Mention one of the tools used by the attacker to gain knowledge of the machine!"
+    answer:
+      - "nmap"
+      - "dirbuster"
+    config:
+      type: "multi"
+  - question: "What is the technique used by the attacker to gain the victim's credentials?"
+    answer: "SQL Injection"
+  - question: "What is the full name of the victim?"
+    answer: "John Doe"
+    config:
+      case_sensitive: true
+      format: "First Last"
