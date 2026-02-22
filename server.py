@@ -128,4 +128,4 @@ if __name__ == "__main__":
         if config.win_text:
             console.print(f"\n[info]{config.win_text}[/info]\n", justify="center")
     
-        console.print(config.flag, justify="center", soft_wrap=True)
+        console.print(config.flag, justify="center", soft_wrap=True, highlight=False)
