@@ -1,45 +1,86 @@
 config:
+  # Flag that will be printed when all questions are answered correctly.
   flag: "CTF{lorem_ipsum_dolor_sit_amet_consectetur_adipiscing_elit_ut_molestie}"
+
+  # Text that will be printed first on startup.
   header_text: |-
     Questionnaire
     by k3ng
+
+  # Text that will be printed after all questions are answered correctly and before printing the flag.
   win_text: "Congratulations, you have successfully analysed the incident!"
+
+  # Enable/disable answer case sensitivity. If false, "Nmap" == "nmap". (Default: true)
   case_sensitive: false
+
+  # Enable/disable skipping questions
+  # If true, the user can answer incorrectly and the program will continue.
+  # If false, the program exits on a wrong answer.
   can_skip: true
+
+  # Character used to split user input for 'array' type questions. (Default: ",")
   array_delimiter: ","
 
+  # Set the numbering type of the program.
+  # If "section", the program will count based on each section. (Example: 1, 2, 3, 4, 5)
+  # If "global", the program will ignore sections and count sequentially. (Example: (Sec 1) 1, 2, 3 -> (Sec 2) 1, 2)
+  #
+  # (Default: "global")
+  numbering: "section"
+
 ui:
+  # Style of the question box. (Default: "blue")
   panel_style: "magenta"
+
+  # Style of the header. (Default: "bold cyan")
   header_style: "bold white"
-  border_type: "ROUNDED"
+
+  # Style of the section box (Default: "yellow")
+  section_style: "bold yellow"
+
+  # Type of border. Types: rounded, heavy, square, double, ascii. (Default: "heavy")
+  border_type: "rounded"
 
 theme:
+  # Style used for "win_text" and question header. (Default: "cyan")
   info: "italic cyan"
+
+  # Style used on wrong answer. (Default: "bold red")
   error: "bold red blink"
+
+  # Style used on correct answer. (Default: "bold green")
   success: "bold green"
+
+  # Style used for the question text. (Default: "bold white")
   question: "bold yellow"
-  flag: "white"
+
+  # Style used for the prompt. (Default: "bold yellow")
   prompt: "bold magenta"
 
-questions:
-  - question: "What ports are open on the machine?"
-    answer:
-      - "22"
-      - "80"
-      - "443"
-    config:
-      type: "array"
-      format: "123,456"
-  - question: "Mention one of the tools used by the attacker to gain knowledge of the machine!"
-    answer:
-      - "nmap"
-      - "dirbuster"
-    config:
-      type: "multi"
-  - question: "What is the technique used by the attacker to gain the victim's credentials?"
-    answer: "SQL Injection"
-  - question: "What is the full name of the victim?"
-    answer: "John Doe"
-    config:
-      case_sensitive: true
-      format: "First Last"
+sections:
+  - name: "Part 1: Reconnaisance"
+    questions:
+    - question: "What ports are open on the machine?"
+      answer:
+        - "22"
+        - "80"
+        - "443"
+      config:
+        type: "array"           # Must provide all of the above but order does not matter
+        format: "123,456"       # Format to help the user
+    - question: "Mention one of the tools used by the attacker to gain knowledge of the machine!"
+      answer:
+        - "nmap"
+        - "dirbuster"
+      config:
+        type: "multi"           # Any of the above is accepted
+    - question: "What is the technique used by the attacker to gain the victim's credentials?"
+      answer: "SQL Injection"
+  - name: "Part 2: Final Part"
+    style: "red"                # Style this section differently from the previous section
+    questions:
+    - question: "What is the full name of the victim?"
+      answer: "John Doe"
+      config:
+        case_sensitive: true    # Overrides global setting
+        format: "First Last"
