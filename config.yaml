@@ -2,7 +2,7 @@ config:
   flag: "CTF{lorem_ipsum_dolor_sit_amet_consectetur_adipiscing_elit_ut_molestie}"
   header_text: |-
     Questionnaire
-    by k3ng
+    by k3ng gant3nk
   win_text: "Congratulations, you have successfully analysed the incident!"
   case_sensitive: false
   can_skip: true
