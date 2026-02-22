@@ -1,3 +1,4 @@
+from os import environ
 import sys
 import yaml
 from enum import Enum
@@ -23,7 +24,7 @@ class GlobalConfig:
     def __init__(self, data):
         # Configuration Section
         cfg = data.get("config", {})
-        self.flag = cfg.get("flag", "{FLAG_MISSING}")
+        self.flag = cfg.get("flag", environ.get("FLAG", "Flag is missing!"))
         self.can_skip = cfg.get("can_skip", False)
         self.array_delimiter = cfg.get("array_delimiter", ",")
         self.case_sensitive = cfg.get("case_sensitive", True)
