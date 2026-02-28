@@ -118,7 +118,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     config = GlobalConfig(yaml_data)
-    console = Console(theme=config.theme)
+    console = Console(theme=config.theme, force_terminal=True, color_system="standard")
     
     # Header
     if config.header_text:
