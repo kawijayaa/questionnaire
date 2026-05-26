@@ -1,7 +1,4 @@
 config:
-  # Flag that will be printed when all questions are answered correctly.
-  flag: "CTF{lorem_ipsum_dolor_sit_amet_consectetur_adipiscing_elit_ut_molestie}"
-
   # Text that will be printed first on startup.
   header_text: |-
     Questionnaire
@@ -22,8 +19,8 @@ config:
   array_delimiter: ","
 
   # Set the numbering type of the program.
-  # If "section", the program will count based on each section. (Example: 1, 2, 3, 4, 5)
-  # If "global", the program will ignore sections and count sequentially. (Example: (Sec 1) 1, 2, 3 -> (Sec 2) 1, 2)
+  # If "section", the program will count based on each section. (Example: (Sec 1) 1, 2, 3 -> (Sec 2) 1, 2)
+  # If "global", the program will ignore sections and count sequentially. (Example: 1, 2, 3, 4, 5)
   #
   # (Default: "global")
   numbering: "section"
@@ -84,3 +81,8 @@ sections:
       config:
         case_sensitive: true    # Overrides global setting
         format: "First Last"
+    - question: "What is the victim's IP address?"
+      answer: "^192\\.168\\.[0-9]{1,3}\\.[0-9]{1,3}$"
+      config:
+        type: "regex"           # Validates the answer using regular expressions
+        format: "192.168.x.x"

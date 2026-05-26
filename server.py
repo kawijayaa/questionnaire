@@ -1,185 +1,230 @@
-from os import environ
+import argparse
+import os
+import re
 import sys
-from rich.align import Align
-import yaml
-from enum import Enum
 from collections import Counter
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+
+import yaml
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+from rich.align import Align
 from rich.console import Console
 from rich.panel import Panel
-from rich.rule import Rule
 from rich.prompt import Prompt
+from rich.rule import Rule
 from rich.theme import Theme
 
-class QuestionType(Enum):
-    DEFAULT = 0
-    ARRAY = 1
-    MULTI = 2
+load_dotenv()
 
-class NumberingType(Enum):
-    GLOBAL = 0
-    SECTION = 1
 
-QUESTION_TYPE_MAPPING = {
-    "default": QuestionType.DEFAULT,
-    "array": QuestionType.ARRAY,
-    "multi": QuestionType.MULTI,
-}
+class QuestionType(str, Enum):
+    DEFAULT = "default"
+    ARRAY = "array"
+    MULTI = "multi"
+    REGEX = "regex"
 
-NUMBERING_TYPE_MAPPING = {
-    "global": NumberingType.GLOBAL,
-    "section": NumberingType.SECTION,
-}
 
-class GlobalConfig:
-    def __init__(self, data):
-        # Configuration Section
-        cfg = data.get("config", {})
-        self.flag = cfg.get("flag", environ.get("FLAG", "Flag is missing!"))
-        self.can_skip = cfg.get("can_skip", False)
-        self.array_delimiter = cfg.get("array_delimiter", ",")
-        self.case_sensitive = cfg.get("case_sensitive", True)
-        self.header_text = cfg.get("header_text", "")
-        self.win_text = cfg.get("win_text", "")
-        self.numbering = NUMBERING_TYPE_MAPPING.get(cfg.get("numbering", "global"), NumberingType.GLOBAL)
-        
-        # UI Styling Section
-        ui = data.get("ui", {})
-        self.panel_style = ui.get("panel_style", "blue")
-        self.header_style = ui.get("header_style", "bold cyan")
-        self.section_style = ui.get("section_style", "yellow")
-        self.border_type = ui.get("border_type", "heavy")
-        
-        # Theme Section
-        self.theme = Theme(data.get("theme", {
-            "info": "cyan",
-            "error": "bold red",
-            "success": "bold green",
-            "question": "bold white",
-            "prompt": "bold yellow"
-        }))
-        
-        sections = []
-        length = 0
-        if "sections" in data:
-            for section in data["sections"]:
-                questions = section.get("questions", [])
-                sections.append(Section(
-                    section.get("name", ""),
-                    questions,
-                    section.get("style", self.section_style)
-                ))
-                length += len(questions)
-        elif "questions" in data:
-            questions = data.get("questions", [])
-            sections.append(Section(
-                None,
-                questions,
-                None
-            ))
-            length += len(questions)
-        self.sections = sections
-        self.length = length
+class NumberingType(str, Enum):
+    GLOBAL = "global"
+    SECTION = "section"
 
-        self.all_correct = True
 
-class Section:
-    def __init__(self, name, questions, style):
-        self.name = name
-        self.questions = questions
-        self.style = style
-        self.length = len(questions)
+class ThemeConfig(BaseModel):
+    info: str = "cyan"
+    error: str = "bold red"
+    success: str = "bold green"
+    question: str = "bold white"
+    prompt: str = "bold yellow"
 
-class Question:
-    def __init__(self, number, data, global_cfg):
-        self.number = number
-        self.question = data.get("question", "")
-        q_cfg = data.get("config", {})
-        
-        self.case_sensitive = q_cfg.get("case_sensitive", global_cfg.case_sensitive)
-        self.format = q_cfg.get("format", "")
-        self.type = QUESTION_TYPE_MAPPING.get(q_cfg.get("type", "default"), QuestionType.DEFAULT)
-        
-        # Answer Processing
-        raw_ans = data.get("answer", "")
-        if not self.case_sensitive:
-            if isinstance(raw_ans, list):
-                self.answer = [a.casefold() for a in raw_ans]
-            else:
-                self.answer = raw_ans.casefold()
-        else:
-            self.answer = raw_ans
 
-if __name__ == "__main__":
+class UIConfig(BaseModel):
+    panel_style: str = "blue"
+    header_style: str = "bold cyan"
+    section_style: str = "yellow"
+    border_type: str = "heavy"
+
+
+class QuestionConfigOpts(BaseModel):
+    type: QuestionType = QuestionType.DEFAULT
+    case_sensitive: Optional[bool] = None
+    format: str = ""
+
+
+class QuestionModel(BaseModel):
+    question: str
+    answer: Union[str, List[str]]
+    config: QuestionConfigOpts = Field(default_factory=QuestionConfigOpts)
+
+
+class SectionModel(BaseModel):
+    name: Optional[str] = None
+    style: Optional[str] = None
+    questions: List[QuestionModel] = []
+
+
+class ConfigBlock(BaseModel):
+    header_text: str = ""
+    win_text: str = ""
+    case_sensitive: bool = True
+    can_skip: bool = False
+    array_delimiter: str = ","
+    numbering: NumberingType = NumberingType.GLOBAL
+
+
+class AppConfig(BaseModel):
+    config: ConfigBlock = Field(default_factory=ConfigBlock)
+    ui: UIConfig = Field(default_factory=UIConfig)
+    theme: ThemeConfig = Field(default_factory=ThemeConfig)
+    sections: List[SectionModel] = []
+    questions: Optional[List[QuestionModel]] = None
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Questionnaire Server")
+    parser.add_argument(
+        "-c", "--config", type=str, default="config.yaml", help="Path to config file"
+    )
+    args = parser.parse_args()
+
+    flag = os.environ.get("FLAG")
+    if not flag:
+        print(
+            "Error: FLAG environment variable is not set. Please set it via environment variables or a .env file."
+        )
+        sys.exit(1)
+
     try:
-        with open("config.yaml", "r") as f:
+        with open(args.config, "r") as f:
             yaml_data = yaml.safe_load(f)
     except Exception as e:
         print(f"Error loading YAML: {e}")
         sys.exit(1)
 
-    config = GlobalConfig(yaml_data)
-    console = Console(theme=config.theme, force_terminal=True, color_system="standard")
-    
+    try:
+        app_cfg = AppConfig(**yaml_data)
+    except Exception as e:
+        print(f"Configuration Validation Error:\n{e}")
+        sys.exit(1)
+
+    # Normalize sections (if root questions are provided instead of sections)
+    sections = app_cfg.sections
+    if not sections and app_cfg.questions:
+        sections = [SectionModel(questions=app_cfg.questions)]
+
+    # Calculate lengths
+    total_questions = sum(len(s.questions) for s in sections)
+
+    theme_dict = (
+        app_cfg.theme.dict()
+        if hasattr(app_cfg.theme, "dict")
+        else app_cfg.theme.model_dump()
+    )
+    theme = Theme(theme_dict)
+    console = Console(theme=theme, force_terminal=True, color_system="standard")
+
     # Header
-    if config.header_text:
+    if app_cfg.config.header_text:
         console.print("\n")
-        console.print(Panel(f"[{config.header_style}]{config.header_text}[/{config.header_style}]", 
-                            border_style="bright_black", padding=(0,5)), justify="center")
+        console.print(
+            Panel(
+                f"[{app_cfg.ui.header_style}]{app_cfg.config.header_text}[/{app_cfg.ui.header_style}]",
+                border_style="bright_black",
+                padding=(0, 5),
+            ),
+            justify="center",
+        )
         console.print("\n")
 
     # Main Loop
     q_counter = 0
-    for i, section in enumerate(config.sections):
+    all_correct = True
+
+    for i, section in enumerate(sections):
         if section.name:
             if i > 0:
                 console.print("\n")
-            console.print(Panel(Align.center(section.name), style=section.style, padding=(1,1)))
+            sec_style = section.style or app_cfg.ui.section_style
+            console.print(
+                Panel(Align.center(section.name), style=sec_style, padding=(1, 1))
+            )
 
-        for i, q_data in enumerate(section.questions, 1):
-            q = Question(i, q_data, config)
+        for j, q in enumerate(section.questions, 1):
             q_counter += 1
-            
-            q_number = 0
-            if config.numbering == NumberingType.SECTION:
-                q_number = q.number
-                length = section.length
+
+            if app_cfg.config.numbering == NumberingType.SECTION:
+                q_number = j
+                length = len(section.questions)
             else:
                 q_number = q_counter
-                length = config.length
+                length = total_questions
 
             console.print(Rule(f"[info]Question {q_number} / {length}[/info]"))
-            
+
             display_text = f"[question]{q.question}[/question]"
-            if q.format:
-                display_text += f"\n\n[dim]Format: {q.format}[/dim]"
-                
-            console.print(Panel(display_text, border_style=config.panel_style, box=getattr(sys.modules['rich.box'], config.border_type.upper())))
+            if q.config.format:
+                display_text += f"\n\n[dim]Format: {q.config.format}[/dim]"
+
+            border = getattr(
+                sys.modules["rich.box"],
+                app_cfg.ui.border_type.upper(),
+                sys.modules["rich.box"].HEAVY,
+            )
+            console.print(
+                Panel(display_text, border_style=app_cfg.ui.panel_style, box=border)
+            )
 
             user_input = Prompt.ask("[prompt]>[/prompt] Answer").strip()
-            check_val = user_input.casefold() if not q.case_sensitive else user_input
+
+            is_case_sensitive = (
+                q.config.case_sensitive
+                if q.config.case_sensitive is not None
+                else app_cfg.config.case_sensitive
+            )
+            check_val = user_input if is_case_sensitive else user_input.casefold()
+
+            # Process Answers
+            ans = q.answer
+            if not is_case_sensitive:
+                if isinstance(ans, list):
+                    ans = [a.casefold() for a in ans]
+                else:
+                    ans = ans.casefold()
 
             # Validation Logic
             correct = False
-            if q.type == QuestionType.ARRAY:
-                user_arr = [ans.strip() for ans in check_val.split(config.array_delimiter)]
-                correct = Counter(user_arr) == Counter(q.answer)
-            elif q.type == QuestionType.MULTI:
-                correct = check_val in q.answer
+            q_type = q.config.type
+            if q_type == QuestionType.ARRAY:
+                user_arr = [
+                    a.strip() for a in check_val.split(app_cfg.config.array_delimiter)
+                ]
+                correct = Counter(user_arr) == Counter(ans)
+            elif q_type == QuestionType.MULTI:
+                correct = check_val in ans
+            elif q_type == QuestionType.REGEX:
+                correct = bool(re.match(ans, check_val))
             else:
-                correct = check_val == q.answer
+                correct = check_val == ans
 
             if correct:
                 console.print("[success]✔ CORRECT[/success]\n")
             else:
                 console.print("[error]✘ INCORRECT[/error]\n")
-                config.all_correct = False
-                if not config.can_skip:
-                    sys.exit(0)
+                all_correct = False
+                if not app_cfg.config.can_skip:
+                    sys.exit(1)
 
     # Win State
-    if config.all_correct:
+    if all_correct:
         console.print(Rule("[success]Success![/success]"))
-        if config.win_text:
-            console.print(f"\n[info]{config.win_text}[/info]\n", justify="center")
-    
-        console.print(config.flag, justify="center", soft_wrap=True, highlight=False)
+        if app_cfg.config.win_text:
+            console.print(
+                f"\n[info]{app_cfg.config.win_text}[/info]\n", justify="center"
+            )
+
+        console.print(flag, justify="center", soft_wrap=True, highlight=False)
+
+
+if __name__ == "__main__":
+    main()
