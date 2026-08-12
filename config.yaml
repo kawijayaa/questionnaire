@@ -1,88 +1,147 @@
 config:
-  # Text that will be printed first on startup.
+  # Optional banner shown before the first section or question. (Default: "")
   header_text: |-
     Questionnaire
     by k3ng
 
-  # Text that will be printed after all questions are answered correctly and before printing the flag.
+  # Optional message shown immediately before the flag after a perfect run.
+  # (Default: "")
   win_text: "Congratulations, you have successfully analysed the incident!"
 
-  # Enable/disable answer case sensitivity. If false, "Nmap" == "nmap". (Default: true)
+  # Global case-sensitivity policy. Individual questions can override this.
+  # When false, values such as "Nmap" and "nmap" are equal. (Default: true)
   case_sensitive: false
 
-  # Enable/disable skipping questions
-  # If true, the user can answer incorrectly and the program will continue.
-  # If false, the program exits on a wrong answer.
+  # When enabled, pressing Enter on a blank or whitespace-only response skips
+  # the current question. Any skipped question prevents flag release.
+  # (Default: false)
   can_skip: true
 
-  # Character used to split user input for 'array' type questions. (Default: ",")
+  # Continue with later questions after a wrong answer. When false, the session
+  # stops at the first wrong answer. Either way, a wrong answer prevents flag
+  # release. This setting is independent of can_skip. (Default: false)
+  #
+  # can_skip controls blank responses; continue_on_incorrect controls wrong ones.
+  continue_on_incorrect: false
+
+  # Separator used to parse responses to array questions. This must not be
+  # empty and may contain more than one character. (Default: ",")
   array_delimiter: ","
 
-  # Set the numbering type of the program.
-  # If "section", the program will count based on each section. (Example: (Sec 1) 1, 2, 3 -> (Sec 2) 1, 2)
-  # If "global", the program will ignore sections and count sequentially. (Example: 1, 2, 3, 4, 5)
-  #
-  # (Default: "global")
+  # "global" numbers all questions in one sequence. "section" restarts at 1
+  # for each section and shows that section's question count. (Default: "global")
   numbering: "section"
 
+  # Maximum characters read for one response. Longer input is rejected before
+  # answer matching to limit memory and processing cost. Range: 1-1,000,000.
+  # (Default: 4096)
+  max_answer_length: 4096
+
+  # Maximum evaluation time for each regex answer. A timeout is treated as an
+  # incorrect response. Range: 1-10,000 milliseconds. (Default: 100)
+  regex_timeout_ms: 100
+
+  # These rules apply globally to default, multi, and array questions. Regex
+  # questions use only trim_whitespace and collapse_whitespace on user input;
+  # their patterns are never rewritten.
+  normalization:
+    # Remove whitespace from both ends of answers before comparison.
+    # (Default: true)
+    trim_whitespace: true
+
+    # Replace every internal whitespace run with one regular space.
+    # For example, "John   Doe" becomes "John Doe". (Default: false)
+    collapse_whitespace: false
+
+    # Remove Unicode punctuation before comparing non-regex answers.
+    # For example, "hello!" equals "hello". (Default: false)
+    ignore_punctuation: false
+
+    # Compare numeric-looking answers as decimal values, so "1", "1.0", and
+    # "1.00" are equal. Non-numeric answers still use text comparison.
+    # (Default: false)
+    numeric_comparison: false
+
+    # "preserve" requires duplicate counts to match; "ignore" compares only
+    # the unique values in array answers. (Default: "preserve")
+    array_duplicates: "preserve"
+
 ui:
-  # Style of the question box. (Default: "blue")
+  # Rich style for question panel borders. (Default: "blue")
   panel_style: "magenta"
 
-  # Style of the header. (Default: "bold cyan")
+  # Rich style for header_text. (Default: "bold cyan")
   header_style: "bold white"
 
-  # Style of the section box (Default: "yellow")
+  # Fallback Rich style for section headings without their own style.
+  # (Default: "yellow")
   section_style: "bold yellow"
 
-  # Type of border. Types: rounded, heavy, square, double, ascii. (Default: "heavy")
+  # Question panel border: rounded, heavy, square, double, or ascii.
+  # (Default: "heavy")
   border_type: "rounded"
 
 theme:
-  # Style used for "win_text" and question header. (Default: "cyan")
+  # Named styles used by the questionnaire. Values use Rich style syntax.
+  # info: progress headings, skip notices, and win_text. (Default: "cyan")
   info: "italic cyan"
 
-  # Style used on wrong answer. (Default: "bold red")
+  # Incorrect answers, incomplete runs, and input errors. (Default: "bold red")
   error: "bold red blink"
 
-  # Style used on correct answer. (Default: "bold green")
+  # Correct answers and the final success heading. (Default: "bold green")
   success: "bold green"
 
-  # Style used for the question text. (Default: "bold white")
+  # Main question text. (Default: "bold white")
   question: "bold yellow"
 
-  # Style used for the prompt. (Default: "bold yellow")
+  # Answer prompt marker. (Default: "bold yellow")
   prompt: "bold magenta"
 
+# Provide exactly one non-empty question source: either sections, as shown
+# below, or a root-level questions list. Unknown fields are rejected.
 sections:
-  - name: "Part 1: Reconnaisance"
+  - name: "Part 1: Reconnaissance"
     questions:
-    - question: "What ports are open on the machine?"
-      answer:
-        - "22"
-        - "80"
-        - "443"
-      config:
-        type: "array"           # Must provide all of the above but order does not matter
-        format: "123,456"       # Format to help the user
-    - question: "Mention one of the tools used by the attacker to gain knowledge of the machine!"
-      answer:
-        - "nmap"
-        - "dirbuster"
-      config:
-        type: "multi"           # Any of the above is accepted
-    - question: "What is the technique used by the attacker to gain the victim's credentials?"
-      answer: "SQL Injection"
+      # array requires every configured value, but input order does not matter.
+      - question: "What ports are open on the machine?"
+        answer:
+          - "22"
+          - "80"
+          - "443"
+        config:
+          type: "array"
+          # Optional note displayed below the question in a dim style.
+          subtext: "List every TCP port found during reconnaissance."
+          # Optional display-only guidance; it does not affect matching.
+          format: "123,456"
+
+      # multi accepts any one value from the answer list.
+      - question: "Mention one of the tools used by the attacker to gain knowledge of the machine!"
+        answer:
+          - "nmap"
+          - "dirbuster"
+        config:
+          type: "multi"
+
+      # Omitting config.type selects the default exact-answer type.
+      - question: "What is the technique used by the attacker to gain the victim's credentials?"
+        answer: "SQL Injection"
+
   - name: "Part 2: Final Part"
-    style: "red"                # Style this section differently from the previous section
+    # Optional Rich style override for this section heading.
+    style: "red"
     questions:
-    - question: "What is the full name of the victim?"
-      answer: "John Doe"
-      config:
-        case_sensitive: true    # Overrides global setting
-        format: "First Last"
-    - question: "What is the victim's IP address?"
-      answer: "^192\\.168\\.[0-9]{1,3}\\.[0-9]{1,3}$"
-      config:
-        type: "regex"           # Validates the answer using regular expressions
-        format: "192.168.x.x"
+      - question: "What is the full name of the victim?"
+        answer: "John Doe"
+        config:
+          # Per-question override of config.case_sensitive.
+          case_sensitive: true
+          format: "First Last"
+
+      # regex patterns match from the start and use regex_timeout_ms.
+      - question: "What is the victim's IP address?"
+        answer: "^192\\.168\\.[0-9]{1,3}\\.[0-9]{1,3}$"
+        config:
+          type: "regex"
+          format: "192.168.x.x"
