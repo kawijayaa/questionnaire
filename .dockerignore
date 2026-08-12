@@ -1,0 +1,10 @@
+.git
+.github
+.env
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+assets
+tests
+solve.py

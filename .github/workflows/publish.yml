@@ -9,7 +9,44 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: python -m unittest discover -v
+
+      - name: Build smoke-test image
+        run: docker build --tag questionnaire:test .
+
+      - name: Smoke-test container listener
+        run: |
+          docker run --detach \
+            --name questionnaire-smoke \
+            --publish 127.0.0.1:1337:1337 \
+            --env FLAG='CTF{container_smoke}' \
+            questionnaire:test
+          python tests/smoke_client.py \
+            127.0.0.1 1337 'CTF{container_smoke}'
+
+      - name: Stop smoke-test container
+        if: always()
+        run: docker rm --force questionnaire-smoke || true
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read

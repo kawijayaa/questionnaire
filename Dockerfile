@@ -29,6 +29,6 @@ USER questionnaire
 
 EXPOSE 1337
 
-# Added stderr and echo=0 to socat so it doesn't double-echo terminal inputs 
-# and properly pipes errors out to the user.
-CMD ["socat", "TCP-LISTEN:1337,reuseaddr,fork", "EXEC:'python server.py',pty,stderr,echo=0"]
+# Limit idle sessions and concurrent children. stderr and echo=0 avoid hidden
+# errors and duplicate terminal input.
+CMD ["socat", "-T60", "TCP-LISTEN:1337,reuseaddr,fork,max-children=100", "EXEC:'python server.py',pty,stderr,echo=0"]
